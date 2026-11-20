@@ -8,8 +8,6 @@ use App\Models\Activity;
 use App\Models\Company;
 use Database\Seeders\DemoPortfolioSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Tests\TestCase;
 
 final class AuthenticationTest extends TestCase
@@ -73,71 +71,6 @@ final class AuthenticationTest extends TestCase
         $this->assertDatabaseHas('companies', [
             'ruc' => DemoPortfolioSeeder::COMPANY_RUC,
         ]);
-    }
-
-    public function test_local_seed_replaces_legacy_demo_company_and_its_test_sales(): void
-    {
-        $company = Company::query()->where('ruc', DemoPortfolioSeeder::COMPANY_RUC)->firstOrFail();
-        $company->update([
-            'ruc' => DemoPortfolioSeeder::LEGACY_COMPANY_RUC,
-            'legal_name' => 'EMPRESA RETIRADA',
-        ]);
-
-        $warehouseId = DB::table('warehouses')->where('company_id', $company->getKey())->value('id');
-        $customerId = DB::table('customers')->where('company_id', $company->getKey())->value('id');
-        $userId = DB::table('users')->where('company_id', $company->getKey())->value('id');
-
-        DB::table('sales')->insert([
-            'uuid' => (string) Str::uuid(),
-            'company_id' => $company->getKey(),
-            'warehouse_id' => $warehouseId,
-            'cash_register_session_id' => null,
-            'customer_id' => $customerId,
-            'user_id' => $userId,
-            'document_type' => '00',
-            'series' => 'NV01',
-            'correlative' => 1,
-            'issue_date' => now(),
-            'currency' => 'PEN',
-            'exchange_rate' => '1.0000',
-            'total_taxed' => '0.00',
-            'total_exonerated' => '0.00',
-            'total_unaffected' => '0.00',
-            'total_igv' => '0.00',
-            'total_discount' => '0.00',
-            'total_amount' => '0.00',
-            'sunat_status' => 'INTERNAL',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        $this->seed(DemoPortfolioSeeder::class);
-
-        $this->assertDatabaseCount('companies', 1);
-        $this->assertDatabaseHas('companies', [
-            'ruc' => DemoPortfolioSeeder::COMPANY_RUC,
-            'legal_name' => 'SAN CRISTOBAL-PAKAMUROS E.I.R.L.',
-        ]);
-        $this->assertDatabaseMissing('companies', ['ruc' => DemoPortfolioSeeder::LEGACY_COMPANY_RUC]);
-        $this->assertDatabaseCount('sales', 0);
-        $this->assertDatabaseHas('users', [
-            'company_id' => DB::table('companies')->where('ruc', DemoPortfolioSeeder::COMPANY_RUC)->value('id'),
-            'email' => DemoPortfolioSeeder::ADMIN_EMAIL,
-        ]);
-    }
-
-    public function test_local_seed_removes_legacy_company_when_san_cristobal_already_exists(): void
-    {
-        Company::factory()->create([
-            'ruc' => DemoPortfolioSeeder::LEGACY_COMPANY_RUC,
-            'legal_name' => 'EMPRESA RETIRADA',
-        ]);
-
-        $this->seed(DemoPortfolioSeeder::class);
-
-        $this->assertDatabaseCount('companies', 1);
-        $this->assertDatabaseHas('companies', ['ruc' => DemoPortfolioSeeder::COMPANY_RUC]);
-        $this->assertDatabaseMissing('companies', ['ruc' => DemoPortfolioSeeder::LEGACY_COMPANY_RUC]);
     }
 
     public function test_cashier_role_receives_limited_permissions(): void

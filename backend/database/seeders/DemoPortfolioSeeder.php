@@ -31,8 +31,6 @@ use Spatie\Permission\PermissionRegistrar;
 
 final class DemoPortfolioSeeder extends Seeder
 {
-    public const LEGACY_COMPANY_RUC = '00000000000';
-
     public const COMPANY_RUC = '20607442381';
 
     public const ADMIN_EMAIL = 'admin@ventaspos.pe';
@@ -54,7 +52,6 @@ final class DemoPortfolioSeeder extends Seeder
         }
 
         DB::transaction(function (): void {
-            $this->removeLegacyCompany();
             $company = $this->seedCompany();
             $this->seedDemoCertificate($company);
             app(TenantContext::class)->set($company);
@@ -72,43 +69,6 @@ final class DemoPortfolioSeeder extends Seeder
 
             app(PermissionRegistrar::class)->forgetCachedPermissions();
         });
-    }
-
-    /**
-     * Remove the old local demo tenant before seeding San Cristobal.
-     * This is safe because this seeder is restricted to local/testing and the RUC
-     * identifies the previous demo company specifically.
-     */
-    private function removeLegacyCompany(): void
-    {
-        $legacyCompany = Company::withTrashed()
-            ->where('ruc', self::LEGACY_COMPANY_RUC)
-            ->first();
-
-        if (! $legacyCompany instanceof Company) {
-            return;
-        }
-
-        $companyId = (int) $legacyCompany->getKey();
-        $userIds = DB::table('users')->where('company_id', $companyId)->pluck('id');
-        $userEmails = DB::table('users')->where('company_id', $companyId)->pluck('email');
-
-        DB::table('activity_log')->where('company_id', $companyId)->delete();
-        DB::table('sales')->where('company_id', $companyId)->delete();
-        DB::table('kardex_movements')->where('company_id', $companyId)->delete();
-        DB::table('cash_register_sessions')->where('company_id', $companyId)->delete();
-        DB::table('document_series')->where('company_id', $companyId)->delete();
-        DB::table('cash_registers')->where('company_id', $companyId)->delete();
-        DB::table('product_warehouse')->where('company_id', $companyId)->delete();
-        DB::table('products')->where('company_id', $companyId)->delete();
-        DB::table('categories')->where('company_id', $companyId)->delete();
-        DB::table('customers')->where('company_id', $companyId)->delete();
-        DB::table('warehouses')->where('company_id', $companyId)->delete();
-        DB::table('password_reset_tokens')->whereIn('email', $userEmails)->delete();
-        DB::table('sessions')->whereIn('user_id', $userIds)->delete();
-        DB::table('users')->where('company_id', $companyId)->delete();
-
-        $legacyCompany->forceDelete();
     }
 
     private function seedCompany(): Company
